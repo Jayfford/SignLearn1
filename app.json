@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "SignLearn",
+    "slug": "SignLearn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/SignLearn.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/SignLearn.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.rence25.SignLearn"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/SignLearn.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/SignLearn.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf141509-4cfe-4e4f-ba9b-4110bd4ddb61"
+      }
+    }
+  }
+}
