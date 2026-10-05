@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,38 +8,64 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-
-const progressStats = [
-  { label: 'Lessons', value: 12, icon: 'menu-book', color: '#4ECDC4' },
-  { label: 'Streak', value: 7, icon: 'whatshot', color: '#FF6B6B' },
-  { label: 'Level', value: 3, icon: 'emoji-events', color: '#FFD166' },
-];
-
-const progressItems = [
-  {
-    title: 'Alphabet Mastery',
-    subtitle: '12 of 15 lessons completed',
-    value: 0.8,
-    label: '80%',
-  },
-  {
-    title: 'Daily Quest Streak',
-    subtitle: '7 days active',
-    value: 1,
-    label: '100%',
-  },
-  {
-    title: 'Quiz Readiness',
-    subtitle: '4 lessons left before next certificate',
-    value: 0.6,
-    label: '60%',
-  },
-];
+import { getStudentProgress, lessonProgressPercent, TOTAL_LESSONS } from './lib/studentProgress';
 
 export default function ProfileProgress() {
   const router = useRouter();
+  const [stats, setStats] = useState({
+    lessons: 0,
+    streak: 0,
+    level: 0,
+    quizzesPassed: 0,
+    percent: 0,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadProgress = async () => {
+        const progress = await getStudentProgress();
+        setStats({
+          lessons: progress.completedLessons.length,
+          streak: progress.streak,
+          level: progress.level,
+          quizzesPassed: progress.quizzesPassed,
+          percent: lessonProgressPercent(progress),
+        });
+      };
+      loadProgress();
+    }, [])
+  );
+
+  const progressStats = [
+    { label: 'Lessons', value: stats.lessons, icon: 'menu-book', color: '#4ECDC4' },
+    { label: 'Streak', value: stats.streak, icon: 'whatshot', color: '#FF6B6B' },
+    { label: 'Level', value: stats.level, icon: 'emoji-events', color: '#FFD166' },
+  ];
+
+  const progressItems = [
+    {
+      title: 'Lesson Completion',
+      subtitle: `${stats.lessons} of ${TOTAL_LESSONS} lessons completed`,
+      value: stats.percent / 100,
+      label: `${stats.percent}%`,
+    },
+    {
+      title: 'Daily Quest Streak',
+      subtitle: stats.streak ? `${stats.streak} day${stats.streak === 1 ? '' : 's'} active` : 'Complete a lesson to start your streak',
+      value: Math.min(1, stats.streak / 7),
+      label: stats.streak ? `${Math.min(100, Math.round((stats.streak / 7) * 100))}%` : '0%',
+    },
+    {
+      title: 'Quiz Readiness',
+      subtitle: stats.quizzesPassed
+        ? `${stats.quizzesPassed} quiz${stats.quizzesPassed === 1 ? '' : 'zes'} completed`
+        : 'Take a module quiz to build this milestone',
+      value: Math.min(1, stats.quizzesPassed / 3),
+      label: `${Math.min(100, Math.round((stats.quizzesPassed / 3) * 100))}%`,
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -14,11 +14,12 @@ import {
   Animated,
   TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomBelt from './components/BottomBelt';
 import { getCurrentUserProfile } from './lib/database';
+import { getStudentProgress, lessonProgressPercent, TOTAL_LESSONS } from './lib/studentProgress';
 import { useNotifications } from './notification-context';
 import { useTheme } from './theme-context';
 import { 
@@ -47,25 +48,56 @@ export default function Profile() {
   const [personalInfo, setPersonalInfo] = useState({ age: '', birthday: '', contactNumber: '', address: '' });
   const [teacherContentCount, setTeacherContentCount] = useState(0);
   const [communityContentCount, setCommunityContentCount] = useState(0);
-  const [userStats] = useState({
-    points: 1250,
-    streak: 7,
-    level: 3,
-    completedLessons: 12,
+  const [userStats, setUserStats] = useState({
+    points: 0,
+    streak: 0,
+    level: 0,
+    completedLessons: 0,
+    quizzesPassed: 0,
+    progressPercent: 0,
+    activity: [],
   });
 
-  // Local content for tabs to render inside profile page
   const progressItems = [
-    { title: 'Alphabet Mastery', subtitle: '12 of 15 lessons completed', progress: '80%' },
-    { title: 'Daily Quest Streak', subtitle: '7 days active', progress: '100%' },
-    { title: 'Quiz Readiness', subtitle: '4 lessons left before next certificate', progress: '60%' },
+    {
+      title: 'Lesson Completion',
+      subtitle: `${userStats.completedLessons} of ${TOTAL_LESSONS} lessons completed`,
+      progress: `${userStats.progressPercent}%`,
+    },
+    {
+      title: 'Daily Quest Streak',
+      subtitle: userStats.streak ? `${userStats.streak} day${userStats.streak === 1 ? '' : 's'} active` : 'Complete a lesson to start your streak',
+      progress: userStats.streak ? `${Math.min(100, userStats.streak * 14)}%` : '0%',
+    },
+    {
+      title: 'Quiz Readiness',
+      subtitle: userStats.quizzesPassed
+        ? `${userStats.quizzesPassed} quiz${userStats.quizzesPassed === 1 ? '' : 'zes'} completed`
+        : 'Finish a module quiz to start this milestone',
+      progress: `${Math.min(100, Math.round((userStats.quizzesPassed / 3) * 100))}%`,
+    },
   ];
 
-  const activityItems = [
-    { title: 'Completed Alphabet Lesson', detail: 'You finished 3 new alphabet cards today.', timestamp: 'Just now' },
-    { title: 'Daily Quest Started', detail: 'You accepted a 3-lesson streak challenge.', timestamp: '1 hour ago' },
-    { title: 'New Achievement Unlocked', detail: 'Level 3 badge earned for active learning.', timestamp: 'Yesterday' },
-  ];
+  const formatActivityTime = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    const then = new Date(timestamp).getTime();
+    if (Number.isNaN(then)) return timestamp;
+    const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.round(hours / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  };
+
+  const activityItems = userStats.activity.length
+    ? userStats.activity.slice(0, 3).map((item) => ({
+        title: item.title,
+        detail: item.detail,
+        timestamp: formatActivityTime(item.timestamp),
+      }))
+    : [{ title: 'No activity yet', detail: 'Complete a lesson or play a game to start tracking your progress.', timestamp: '' }];
 
   const teacherActivityItems = [
     { title: 'Classroom Post Published', detail: 'You added a new lesson resource for your learners.', timestamp: 'Just now' },
@@ -110,6 +142,25 @@ export default function Profile() {
       Animated.timing(contentOpacity, { toValue: 1, duration: 160, useNativeDriver: true }),
     ]).start();
   }, [activeSection]);
+
+  const applyStudentProgress = async () => {
+    const progress = await getStudentProgress();
+    setUserStats({
+      points: progress.points,
+      streak: progress.streak,
+      level: progress.level,
+      completedLessons: progress.completedLessons.length,
+      quizzesPassed: progress.quizzesPassed,
+      progressPercent: lessonProgressPercent(progress),
+      activity: progress.activity,
+    });
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      applyStudentProgress();
+    }, [])
+  );
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -565,14 +616,14 @@ export default function Profile() {
                     <View style={styles.progressRingWrap}>
                       <View style={styles.progressRingOuter}>
                         <View style={styles.progressRingInner}>
-                          <Text style={styles.progressPercent}>40%</Text>
+                          <Text style={styles.progressPercent}>{userStats.progressPercent}%</Text>
                         </View>
                       </View>
                     </View>
 
                     <View style={styles.journeyMeta}>
                       <Text style={styles.metaLabel}>Lessons Completed</Text>
-                      <Text style={styles.metaValue}>5 of 12 lessons</Text>
+                      <Text style={styles.metaValue}>{userStats.completedLessons} of {TOTAL_LESSONS} lessons</Text>
                     </View>
                   </View>
                 </View>
@@ -582,28 +633,28 @@ export default function Profile() {
                     <View style={[styles.metricIcon, { backgroundColor: '#E9DCCB' }]}>
                       <MaterialIcons name="menu-book" size={18} color="#36312E" />
                     </View>
-                    <Text style={styles.metricValueSmall}>5</Text>
+                    <Text style={styles.metricValueSmall}>{userStats.completedLessons}</Text>
                     <Text style={styles.metricLabelSmall}>Lessons Completed</Text>
                   </View>
                   <View style={styles.metricTile}>
                     <View style={[styles.metricIcon, { backgroundColor: '#F5D9C5' }]}>
                       <MaterialIcons name="quiz" size={18} color="#36312E" />
                     </View>
-                    <Text style={styles.metricValueSmall}>4</Text>
+                    <Text style={styles.metricValueSmall}>{userStats.quizzesPassed}</Text>
                     <Text style={styles.metricLabelSmall}>Quizzes Passed</Text>
                   </View>
                   <View style={styles.metricTile}>
                     <View style={[styles.metricIcon, { backgroundColor: '#DDE8DB' }]}>
                       <MaterialIcons name="calendar-today" size={18} color="#36312E" />
                     </View>
-                    <Text style={styles.metricValueSmall}>7 days</Text>
+                    <Text style={styles.metricValueSmall}>{userStats.streak} days</Text>
                     <Text style={styles.metricLabelSmall}>Learning Streak</Text>
                   </View>
                   <View style={styles.metricTile}>
                     <View style={[styles.metricIcon, { backgroundColor: '#E7D9F0' }]}>
                       <MaterialIcons name="workspace-premium" size={18} color="#36312E" />
                     </View>
-                    <Text style={styles.metricValueSmall}>3</Text>
+                    <Text style={styles.metricValueSmall}>{userStats.completedLessons > 0 ? 1 : 0}</Text>
                     <Text style={styles.metricLabelSmall}>Achievements</Text>
                   </View>
                 </View>
@@ -620,21 +671,21 @@ export default function Profile() {
                         <MaterialIcons name="emoji-hands" size={28} color="#7C4B27" />
                       </View>
                       <Text style={styles.badgeName}>First Lesson</Text>
-                      <Text style={styles.badgeState}>Unlocked</Text>
+                      <Text style={styles.badgeState}>{userStats.completedLessons > 0 ? 'Unlocked' : 'Locked'}</Text>
                     </View>
                     <View style={styles.badgeItem}>
                       <View style={[styles.badgeCircle, { backgroundColor: '#CFE7D9' }]}>
                         <MaterialIcons name="local-fire-department" size={28} color="#27614A" />
                       </View>
                       <Text style={styles.badgeName}>Week Streak</Text>
-                      <Text style={styles.badgeState}>Unlocked</Text>
+                      <Text style={styles.badgeState}>{userStats.streak >= 7 ? 'Unlocked' : 'Locked'}</Text>
                     </View>
                     <View style={styles.badgeItem}>
                       <View style={[styles.badgeCircle, { backgroundColor: '#E7D4AE' }]}>
                         <MaterialIcons name="book" size={28} color="#7C5A1A" />
                       </View>
                       <Text style={styles.badgeName}>Quiz Master</Text>
-                      <Text style={styles.badgeState}>Unlocked</Text>
+                      <Text style={styles.badgeState}>{userStats.quizzesPassed > 0 ? 'Unlocked' : 'Locked'}</Text>
                     </View>
                     <View style={styles.badgeItem}>
                       <View style={[styles.badgeCircle, { backgroundColor: '#D9E4EC' }]}>
@@ -653,27 +704,18 @@ export default function Profile() {
                   </View>
 
                   <View style={styles.activityList}>
-                    <View style={styles.activityRow}>
-                      <View style={[styles.activityIcon, { backgroundColor: '#E9DCCB' }]}>
-                        <MaterialIcons name="menu-book" size={18} color="#36312E" />
+                    {activityItems.map((item) => (
+                      <View key={`${item.title}-${item.timestamp}`} style={styles.activityRow}>
+                        <View style={[styles.activityIcon, { backgroundColor: '#E9DCCB' }]}>
+                          <MaterialIcons name="menu-book" size={18} color="#36312E" />
+                        </View>
+                        <View style={styles.activityMeta}>
+                          <Text style={styles.activityTitle}>{item.title}</Text>
+                          <Text style={styles.activitySubtitle}>{item.detail}</Text>
+                        </View>
+                        {item.timestamp ? <Text style={styles.activityTime}>{item.timestamp}</Text> : null}
                       </View>
-                      <View style={styles.activityMeta}>
-                        <Text style={styles.activityTitle}>Completed Lesson 5</Text>
-                        <Text style={styles.activitySubtitle}>Numbers • Novice Sign</Text>
-                      </View>
-                      <Text style={styles.activityTime}>2 hours ago</Text>
-                    </View>
-
-                    <View style={styles.activityRow}>
-                      <View style={[styles.activityIcon, { backgroundColor: '#F5D9C5' }]}>
-                        <MaterialIcons name="quiz" size={18} color="#36312E" />
-                      </View>
-                      <View style={styles.activityMeta}>
-                        <Text style={styles.activityTitle}>Passed Quiz</Text>
-                        <Text style={styles.activitySubtitle}>Greetings & Manners • 100%</Text>
-                      </View>
-                      <Text style={styles.activityTime}>5 hours ago</Text>
-                    </View>
+                    ))}
                   </View>
                 </View>
               </Animated.View>

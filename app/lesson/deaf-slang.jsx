@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { finishLesson } from '../lib/studentProgress';
 
 const lessonData = [
   {
@@ -107,7 +108,7 @@ export default function DeafSlangLesson() {
               <Text style={[styles.navButtonText, currentStep === 0 && styles.disabledText]}>Previous</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : router.push('/learn')}
+              onPress={async () => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : finishLesson('11', router, { title: 'Completed Deaf Slang Lesson', detail: 'You finished Deaf Slang/Idioms.' })}
               style={styles.navButtonPrimary}
             >
               <Text style={styles.navButtonTextPrimary}>

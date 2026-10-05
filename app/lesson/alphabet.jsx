@@ -22,5 +22,5 @@ const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter, index) => ({
 }));
 
 export default function AlphabetLesson() {
-  return <SignDictionaryPage title="Sign Alphabet" subtitle="ASL gesture vector catalog" items={letters} signKey="letter" imageKey="image" category="Alphabet" />;
+  return <SignDictionaryPage title="Sign Alphabet" subtitle="ASL gesture vector catalog" items={letters} signKey="letter" imageKey="image" category="Alphabet" lessonId="1" />;
 }

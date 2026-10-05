@@ -18,5 +18,5 @@ const numbers = Array.from({ length: 15 }, (_, index) => ({
 }));
 
 export default function NumbersLesson() {
-  return <SignDictionaryPage title="Sign Numbers" subtitle="Handshape number catalog" items={numbers} signKey="number" imageKey="image" category="Numbers" />;
+  return <SignDictionaryPage title="Sign Numbers" subtitle="Handshape number catalog" items={numbers} signKey="number" imageKey="image" category="Numbers" lessonId="2" />;
 }

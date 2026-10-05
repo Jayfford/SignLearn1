@@ -14,7 +14,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, FontAwesome, Ionicons, Feather } from '@expo/vector-icons';
 import { Video } from 'expo-av';
@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import BottomBelt from './components/BottomBelt';
 import { useNotifications } from './notification-context';
+import { getStudentProgress, TOTAL_LESSONS } from './lib/studentProgress';
 
 export default function Learn() {
   const router = useRouter();
@@ -61,7 +62,6 @@ export default function Learn() {
   // Load user data and completed lessons
   useEffect(() => {
     loadUserData();
-    loadCompletedLessons();
     loadLikedVideos();
     loadWatchHistory();
     Animated.timing(fadeAnim, {
@@ -70,6 +70,12 @@ export default function Learn() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadCompletedLessons();
+    }, [])
+  );
 
   useEffect(() => {
     if (userEmail && (accountType === 'teacher' || accountType === 'deaf')) {
@@ -191,14 +197,11 @@ export default function Learn() {
 
   const loadCompletedLessons = async () => {
     try {
-      const savedLessons = await AsyncStorage.getItem('completedLessons');
-      if (savedLessons) {
-        const lessons = JSON.parse(savedLessons);
-        setCompletedLessons(lessons);
-        const totalLessons = 12;
-        const progressPercent = (lessons.length / totalLessons) * 100;
-        setProgress(Math.min(progressPercent, 100));
-      }
+      const progress = await getStudentProgress();
+      const lessons = progress.completedLessons || [];
+      setCompletedLessons(lessons);
+      const progressPercent = (lessons.length / TOTAL_LESSONS) * 100;
+      setProgress(Math.min(progressPercent, 100));
     } catch (error) {
       console.error('Error loading completed lessons:', error);
     }
@@ -388,21 +391,6 @@ export default function Learn() {
     );
   };
 
-  const markLessonComplete = async (lessonId) => {
-    if (!completedLessons.includes(lessonId)) {
-      const newCompletedLessons = [...completedLessons, lessonId];
-      setCompletedLessons(newCompletedLessons);
-      
-      // Update progress
-      const totalLessons = 12;
-      const progressPercent = (newCompletedLessons.length / totalLessons) * 100;
-      setProgress(Math.min(progressPercent, 100));
-      
-      // Save to AsyncStorage
-      await AsyncStorage.setItem('completedLessons', JSON.stringify(newCompletedLessons));
-    }
-  };
-
   const isCategoryUnlocked = (category) => {
     if (category === 'Novice Sign') return true;
     if (category === 'Intermediate Sign') return completedLessons.length >= 4; // Complete Novice category
@@ -569,7 +557,7 @@ export default function Learn() {
         <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
       </View>
       <Text style={styles.progressText}>
-        {completedLessons.length} of 12 lessons completed
+        {completedLessons.length} of {TOTAL_LESSONS} lessons completed
       </Text>
     </View>
   );
@@ -661,10 +649,7 @@ export default function Learn() {
             ) : isCompleted ? (
               <MaterialIcons name="check-circle" size={24} color="#4ECDC4" />
             ) : (
-              <TouchableOpacity 
-                style={styles.checkbox}
-                onPress={() => markLessonComplete(item.id)}
-              />
+              <MaterialIcons name="chevron-right" size={24} color="#999" />
             )}
           </View>
         </TouchableOpacity>
@@ -1260,11 +1245,11 @@ export default function Learn() {
                   <MaterialIcons name="emoji-events" size={50} color="#FFD166" />
                   <Text style={styles.certificateTitle}>Your Certificate is close!</Text>
                   <Text style={styles.certificateText}>
-                    Complete {12 - completedLessons.length} more lessons to unlock your certificate!
+                    Complete {TOTAL_LESSONS - completedLessons.length} more lessons to unlock your certificate!
                   </Text>
                   <View style={styles.certificateProgress}>
                     <Text style={styles.certificateProgressText}>
-                      {completedLessons.length}/12 lessons completed
+                      {completedLessons.length}/{TOTAL_LESSONS} lessons completed
                     </Text>
                     <View style={styles.certificateProgressBar}>
                       <View style={[

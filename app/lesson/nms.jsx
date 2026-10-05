@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { finishLesson } from '../lib/studentProgress';
 
 const lessonData = [
   {
@@ -107,7 +108,7 @@ export default function NmsLesson() {
               <Text style={[styles.navButtonText, currentStep === 0 && styles.disabledText]}>Previous</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : router.push('/learn')}
+              onPress={async () => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : finishLesson('10', router, { title: 'Completed NMS Lesson', detail: 'You finished Non-Manual Signals.' })}
               style={styles.navButtonPrimary}
             >
               <Text style={styles.navButtonTextPrimary}>

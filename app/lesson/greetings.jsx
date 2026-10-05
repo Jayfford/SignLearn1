@@ -35,5 +35,5 @@ const greetings = greetingNames.map(([sign, file, instruction], index) => ({
 }));
 
 export default function GreetingsMannersLesson() {
-  return <SignDictionaryPage title="Sign Dictionary" subtitle="ASL gesture vector catalog" items={greetings} signKey="sign" imageKey="image" category="Greetings" />;
+  return <SignDictionaryPage title="Sign Dictionary" subtitle="ASL gesture vector catalog" items={greetings} signKey="sign" imageKey="image" category="Greetings" lessonId="3" />;
 }

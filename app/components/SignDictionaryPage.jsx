@@ -3,6 +3,7 @@ import { Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, Te
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import BottomBelt from './BottomBelt';
+import { finishLesson } from '../lib/studentProgress';
 
 const COLORS = {
   background: '#F6EBDD',
@@ -13,10 +14,11 @@ const COLORS = {
   coral: '#E36455',
 };
 
-export default function SignDictionaryPage({ title, subtitle, items, signKey, imageKey, category = 'Signs' }) {
+export default function SignDictionaryPage({ title, subtitle, items, signKey, imageKey, category = 'Signs', lessonId }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
+  const [completing, setCompleting] = useState(false);
   const filteredItems = useMemo(() => items.filter((item) => {
     const value = String(item[signKey] || item.title || '').toLowerCase();
     return value.includes(query.trim().toLowerCase());
@@ -25,6 +27,18 @@ export default function SignDictionaryPage({ title, subtitle, items, signKey, im
   const openCamera = () => {
     if (!selected) return;
     router.push({ pathname: '/ai-camera', params: { targetSign: selected[signKey] || selected.title } });
+  };
+
+  const handleCompleteLesson = async () => {
+    if (!lessonId || completing) {
+      router.back();
+      return;
+    }
+    setCompleting(true);
+    await finishLesson(lessonId, router, {
+      title: `Completed ${title}`,
+      detail: `You finished the ${category} lesson.`,
+    });
   };
 
   return (
@@ -59,6 +73,12 @@ export default function SignDictionaryPage({ title, subtitle, items, signKey, im
             ))}
           </View>
           {!filteredItems.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>No signs found</Text><Text style={styles.emptyText}>Try a different search term.</Text></View> : null}
+          {lessonId ? (
+            <Pressable style={styles.completeButton} onPress={handleCompleteLesson} disabled={completing}>
+              <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.completeButtonText}>{completing ? 'Saving...' : 'Complete Lesson'}</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
         <BottomBelt active="learn" />
       </View>
@@ -121,4 +141,6 @@ const styles = StyleSheet.create({
   detailValue: { color: COLORS.muted, fontSize: 11, lineHeight: 15, marginTop: 2 },
   cameraButton: { minHeight: 45, borderRadius: 11, backgroundColor: COLORS.coral, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7, marginTop: 3 },
   cameraButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  completeButton: { minHeight: 48, borderRadius: 14, backgroundColor: COLORS.coral, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 16 },
+  completeButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

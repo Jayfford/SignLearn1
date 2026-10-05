@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { finishLesson } from '../lib/studentProgress';
 
 const lessonData = [
   {
@@ -107,7 +108,7 @@ export default function NarrativeLesson() {
               <Text style={[styles.navButtonText, currentStep === 0 && styles.disabledText]}>Previous</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : router.push('/learn')}
+              onPress={async () => currentStep < lessonData.length - 1 ? setCurrentStep(currentStep + 1) : finishLesson('6', router, { title: 'Completed Narrative Lesson', detail: 'You finished Narrative & Emotional Depth.' })}
               style={styles.navButtonPrimary}
             >
               <Text style={styles.navButtonTextPrimary}>

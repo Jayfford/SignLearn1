@@ -11,11 +11,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomBelt from './components/BottomBelt';
 import { getCurrentUserProfile } from './lib/database';
+import { getStudentProgress, lessonProgressPercent, TOTAL_LESSONS } from './lib/studentProgress';
 
 const handImages = [
   require('../assets/images/1.png'),
@@ -47,29 +48,37 @@ export default function Home() {
   const router = useRouter();
   const [userName, setUserName] = useState('Learner');
   const [showMenu, setShowMenu] = useState(false);
+  const [lessonCount, setLessonCount] = useState(0);
+  const [progressPercent, setProgressPercent] = useState(0);
   const pageAnim = useRef(new Animated.Value(0)).current;
   const heroFloat = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    const loadUserName = async () => {
-      try {
-        const user = await getCurrentUserProfile();
-        if (user?.name) {
-          setUserName(user.name);
-          return;
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadProgress = async () => {
+        try {
+          const user = await getCurrentUserProfile();
+          if (user?.name) {
+            setUserName(user.name);
+          } else {
+            const stored = await AsyncStorage.getItem('userData');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed?.name) setUserName(parsed.name);
+            }
+          }
+
+          const progress = await getStudentProgress(user);
+          setLessonCount(progress.completedLessons.length);
+          setProgressPercent(lessonProgressPercent(progress));
+        } catch {
+          // Keep the friendly fallback when stored data is unavailable.
         }
+      };
 
-        const stored = await AsyncStorage.getItem('userData');
-        if (!stored) return;
-        const parsed = JSON.parse(stored);
-        if (parsed?.name) setUserName(parsed.name);
-      } catch {
-        // Keep the friendly fallback when stored data is unavailable.
-      }
-    };
-
-    loadUserName();
-  }, []);
+      loadProgress();
+    }, [])
+  );
 
   useEffect(() => {
     Animated.timing(pageAnim, {
@@ -160,11 +169,11 @@ export default function Home() {
 
           <Animated.View style={pageEnterStyle}>
           <Pressable style={styles.progressCard} onPress={() => router.push('/profile-progress')}>
-            <View style={styles.progressRing}><Text style={styles.progressPercent}>40%</Text></View>
+            <View style={styles.progressRing}><Text style={styles.progressPercent}>{progressPercent}%</Text></View>
             <View style={styles.progressCopy}>
               <Text style={styles.progressTitle}>Your Learning Progress</Text>
-              <Text style={styles.progressSubtitle}>You’ve completed 2 of 5 lessons</Text>
-              <View style={styles.progressTrack}><View style={styles.progressFill} /></View>
+              <Text style={styles.progressSubtitle}>You’ve completed {lessonCount} of {TOTAL_LESSONS} lessons</Text>
+              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progressPercent}%` }]} /></View>
             </View>
             <Ionicons name="chevron-forward" size={25} color={COLORS.muted} />
           </Pressable>
@@ -291,7 +300,7 @@ const styles = StyleSheet.create({
   progressTitle: { color: COLORS.ink, fontSize: 18, fontWeight: '800' },
   progressSubtitle: { color: COLORS.muted, fontSize: 14, marginTop: 5 },
   progressTrack: { height: 11, borderRadius: 6, backgroundColor: '#E9DCCB', marginTop: 12, overflow: 'hidden' },
-  progressFill: { height: '100%', width: '40%', borderRadius: 6, backgroundColor: COLORS.brown },
+  progressFill: { height: '100%', width: '0%', borderRadius: 6, backgroundColor: COLORS.brown },
   quickGrid: { flexDirection: 'row', gap: 10, marginBottom: 30 },
   quickPressable: { flex: 1, minWidth: 0 },
   quickCard: { flex: 1, minHeight: 128, borderRadius: 20, backgroundColor: COLORS.panel, alignItems: 'center', justifyContent: 'center', shadowColor: '#8E7660', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },

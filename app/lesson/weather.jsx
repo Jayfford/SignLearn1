@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { finishLesson } from '../lib/studentProgress';
 
 const lessonData = [
   {
@@ -58,11 +59,14 @@ export default function WeatherLesson() {
   const progressText = `${currentStep + 1}/${lessonData.length}`;
   const progressPercent = ((currentStep + 1) / lessonData.length) * 100;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (currentStep < lessonData.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.push('/learn');
+      await finishLesson('5', router, {
+        title: 'Completed Weather Lesson',
+        detail: 'You finished the weather signs lesson.',
+      });
     }
   };
 

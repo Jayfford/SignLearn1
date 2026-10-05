@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import BottomBelt from './components/BottomBelt';
+import { addStudentGamePoints, getProgressOwnerKey } from './lib/studentProgress';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -74,7 +75,7 @@ export default function Game() {
   const [flippedCards, setFlippedCards] = useState([]);
   const [matchedPairs, setMatchedPairs] = useState([]);
   const [lives, setLives] = useState(10);
-  const [level, setLevel] = useState(1);
+  const [level, setLevel] = useState(0);
   const [difficulty, setDifficulty] = useState('Easy');
   const [score, setScore] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
@@ -102,6 +103,7 @@ export default function Game() {
   const [signMatchTimeRemaining, setSignMatchTimeRemaining] = useState(180);
   const [signMatchTimerActive, setSignMatchTimerActive] = useState(false);
   
+  const [progressOwner, setProgressOwner] = useState('');
   const flipAnimations = useRef({});
   const progressAnim = useRef(new Animated.Value(0)).current;
   const timerInterval = useRef(null);
@@ -323,30 +325,56 @@ export default function Game() {
 
   const loadGameProgress = async () => {
     try {
-      const savedProgress = await AsyncStorage.getItem('gameProgress');
+      const ownerKey = await getProgressOwnerKey();
+      setProgressOwner(ownerKey);
+      if (!ownerKey) {
+        setLevel(0);
+        setScore(0);
+        setUserStreak(0);
+        return;
+      }
+
+      const savedProgress = await AsyncStorage.getItem(`gameProgress_${ownerKey}`);
       if (savedProgress) {
         const progress = JSON.parse(savedProgress);
-        setLevel(progress.level || 1);
+        setLevel(progress.level || 0);
         setScore(progress.score || 0);
         setUserStreak(progress.streak || 0);
+        return;
       }
+
+      setLevel(0);
+      setScore(0);
+      setUserStreak(0);
     } catch (error) {
       console.error('Error loading game progress:', error);
     }
   };
 
-  const saveGameProgress = async () => {
+  const saveGameProgress = async (nextScore = score, nextLevel = level, nextStreak = userStreak) => {
     try {
+      const ownerKey = progressOwner || await getProgressOwnerKey();
+      if (!ownerKey) return;
       const progress = {
-        level,
-        score,
-        streak: userStreak,
+        level: nextLevel,
+        score: nextScore,
+        streak: nextStreak,
         lastPlayed: new Date().toISOString()
       };
-      await AsyncStorage.setItem('gameProgress', JSON.stringify(progress));
+      await AsyncStorage.setItem(`gameProgress_${ownerKey}`, JSON.stringify(progress));
     } catch (error) {
       console.error('Error saving game progress:', error);
     }
+  };
+
+  const earnPoints = (amount) => {
+    if (amount <= 0) return;
+    setScore((prev) => {
+      const next = prev + amount;
+      saveGameProgress(next, Math.max(level, 1), userStreak);
+      return next;
+    });
+    addStudentGamePoints(amount);
   };
 
   useEffect(() => {
@@ -449,7 +477,7 @@ export default function Game() {
     if (firstCard.letter === secondCard.letter) {
       // Match found
       setMatchedPairs([...matchedPairs, firstId, secondId]);
-      setScore(prev => prev + 100);
+      earnPoints(100);
       setUserStreak(prev => prev + 1);
       
       setTimeout(() => {
@@ -490,8 +518,8 @@ export default function Game() {
     clearSignMatchTimer();
     setSignMatchTimerActive(false);
     setShowConfetti(true);
-    setScore(prev => prev + 500);
-    saveGameProgress();
+    earnPoints(500);
+    setLevel((prev) => Math.max(prev, currentSignMatchStage));
 
     const isFinalStage = currentSignMatchStage === signMatchStages.length;
     const nextStage = Math.min(currentSignMatchStage + 1, signMatchStages.length);
@@ -606,7 +634,7 @@ export default function Game() {
     setSelectedAnswer(answer);
 
     if (correct) {
-      setScore(prev => prev + 50);
+      earnPoints(50);
       setUserStreak(prev => prev + 1);
       setShowConfetti(true);
       
@@ -636,11 +664,11 @@ export default function Game() {
     
     if (letter === expectedLetter) {
       setUserConversation([...userConversation, letter]);
-      setScore(prev => prev + 50);
+      earnPoints(50);
       
       if (userConversation.length + 1 === conversation.sequence.length) {
         setShowConfetti(true);
-        setScore(prev => prev + 200);
+        earnPoints(200);
         setTimeout(() => {
           handleGameOver();
         }, 1500);
@@ -671,7 +699,7 @@ export default function Game() {
     const nextLives = correct ? lives : lives - 1;
 
     if (correct) {
-      setScore(prev => prev + 100 + (timeRemaining * 2));
+      earnPoints(100 + (timeRemaining * 2));
       setUserStreak(prev => prev + 1);
     } else {
       setLives(prev => prev - 1);

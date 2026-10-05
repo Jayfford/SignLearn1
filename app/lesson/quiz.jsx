@@ -13,6 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import BottomBelt from '../components/BottomBelt';
+import { finishLesson } from '../lib/studentProgress';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -133,8 +134,13 @@ export default function Module1Quiz() {
     setQuizComplete(false);
   };
 
-  const handleFinish = () => {
-    router.push('/learn');
+  const handleFinish = async () => {
+    const lessonId = module === '2' ? '8' : module === '3' ? '12' : '4';
+    await finishLesson(lessonId, router, {
+      isQuiz: true,
+      title: `Completed Module ${module} Quiz`,
+      detail: `You scored ${score} / ${quizData.length} on the quiz.`,
+    });
   };
 
   const handleOptionSelect = (option) => {
