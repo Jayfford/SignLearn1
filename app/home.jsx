@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Platform,
   Animated,
   Easing,
   Image,
@@ -15,7 +16,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomBelt from './components/BottomBelt';
-import { getCurrentUserProfile } from './lib/database';
+import { getCurrentUserProfile, logoutUser } from './lib/database';
 import { getStudentProgress, lessonProgressPercent, TOTAL_LESSONS } from './lib/studentProgress';
 
 const handImages = [
@@ -101,16 +102,31 @@ export default function Home() {
     transform: [{ translateY: pageAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
   };
 
+  const performLogout = async () => {
+    setShowMenu(false);
+    await logoutUser();
+    router.replace('/');
+  };
+
   const logout = () => {
+    setShowMenu(false);
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof globalThis.confirm === 'function'
+        ? globalThis.confirm('Are you sure you want to log out?')
+        : true;
+      if (confirmed) {
+        performLogout();
+      }
+      return;
+    }
+
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log out',
         style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.multiRemove(['userData', 'userToken']);
-          router.replace('/');
-        },
+        onPress: performLogout,
       },
     ]);
   };
@@ -140,14 +156,6 @@ export default function Home() {
               </Pressable>
             </View>
           </Animated.View>
-
-          {showMenu && (
-            <View style={styles.menu}>
-              <Pressable onPress={() => router.push('/settings')}><Text style={styles.menuText}>Settings</Text></Pressable>
-              <Pressable onPress={() => router.push('/help-support')}><Text style={styles.menuText}>Help & Support</Text></Pressable>
-              <Pressable onPress={logout}><Text style={[styles.menuText, styles.logoutText]}>Log out</Text></Pressable>
-            </View>
-          )}
 
           <Animated.View style={[styles.heroCard, pageEnterStyle]}>
             <View style={styles.heroCopy}>
@@ -225,6 +233,13 @@ export default function Home() {
             ))}
           </View>
         </ScrollView>
+        {showMenu && (
+          <View style={styles.menu}>
+            <Pressable onPress={() => router.push('/settings')}><Text style={styles.menuText}>Settings</Text></Pressable>
+            <Pressable onPress={() => router.push('/help-support')}><Text style={styles.menuText}>Help & Support</Text></Pressable>
+            <Pressable onPress={logout}><Text style={[styles.menuText, styles.logoutText]}>Log out</Text></Pressable>
+          </View>
+        )}
         <BottomBelt active="home" />
       </View>
     </SafeAreaView>
@@ -274,7 +289,7 @@ const styles = StyleSheet.create({
   avatarButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.panel, borderWidth: 4, borderColor: '#E8D9C8', overflow: 'hidden' },
   headerAvatar: { width: '100%', height: '100%' },
   menuButton: { padding: 5 },
-  menu: { position: 'absolute', top: 70, right: 22, zIndex: 10, backgroundColor: COLORS.panel, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 14, shadowColor: '#6B5848', shadowOpacity: 0.18, shadowRadius: 10, elevation: 5 },
+  menu: { position: 'absolute', top: 70, right: 22, zIndex: 2000, elevation: 20, backgroundColor: COLORS.panel, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 14, shadowColor: '#6B5848', shadowOpacity: 0.18, shadowRadius: 10 },
   menuText: { paddingVertical: 9, color: COLORS.ink, fontSize: 14 },
   logoutText: { color: '#B74D43' },
   heroCard: { minHeight: 290, borderRadius: 24, backgroundColor: '#EAD8C4', overflow: 'hidden', flexDirection: 'row', padding: 28, position: 'relative', marginBottom: 28 },

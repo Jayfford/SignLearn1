@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  Platform,
   SafeAreaView,
   StatusBar,
   Switch,
@@ -18,7 +19,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomBelt from './components/BottomBelt';
-import { getCurrentUserProfile } from './lib/database';
+import { getCurrentUserProfile, logoutUser } from './lib/database';
 import { getStudentProgress, lessonProgressPercent, TOTAL_LESSONS } from './lib/studentProgress';
 import { useNotifications } from './notification-context';
 import { useTheme } from './theme-context';
@@ -267,8 +268,25 @@ export default function Profile() {
   };
 
   /* ================= HANDLERS ================= */
+  const performLogout = useCallback(async () => {
+    setShowMenu(false);
+    await logoutUser();
+    router.replace('/');
+  }, [router]);
+
   const handleLogout = useCallback(() => {
     setShowMenu(false);
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof globalThis.confirm === 'function'
+        ? globalThis.confirm('Are you sure you want to log out?')
+        : true;
+      if (confirmed) {
+        performLogout();
+      }
+      return;
+    }
+
     Alert.alert(
       'Log Out',
       'Are you sure you want to log out?',
@@ -280,11 +298,11 @@ export default function Profile() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => router.replace('/'),
+          onPress: performLogout,
         },
       ]
     );
-  }, [router]);
+  }, [performLogout]);
 
   const handleExit = useCallback(() => {
     Alert.alert(
@@ -361,72 +379,6 @@ export default function Profile() {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Settings Dropdown */}
-          {showMenu && (
-            <View style={[styles.dropdown, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-              <TouchableOpacity 
-                style={styles.dropdownBtn}
-                onPress={() => {
-                  setShowMenu(false);
-                  router.push('/settings');
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons name="settings" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Settings</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.dropdownBtn}
-                onPress={() => {
-                  setShowMenu(false);
-                  router.push('/admin');
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons name="admin-panel-settings" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Admin Dashboard</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.dropdownBtn}
-                onPress={() => {
-                  setShowMenu(false);
-                  router.push('/help-support');
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons name="help-outline" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Help & Support</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.dropdownBtn}
-                onPress={() => {
-                  setShowMenu(false);
-                  router.push('/display-accessibility');
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons name="accessibility-new" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Display & Accessibility</Text>
-              </TouchableOpacity>
-
-              <View style={[styles.dropdownDivider, { backgroundColor: theme.colors.border }]} />
-
-              <TouchableOpacity
-                style={[styles.dropdownBtn, styles.logoutBtn]}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons name="logout" size={18} color="#FF6B6B" style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownItem, styles.logoutText]}>
-                  Log out
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* ===== COVER + AVATAR ===== */}
           <View style={styles.coverContainer}>
@@ -829,6 +781,71 @@ export default function Profile() {
           <View style={styles.bottomPadding} />
         </ScrollView>
 
+        {showMenu && (
+          <View style={[styles.dropdown, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              onPress={() => {
+                setShowMenu(false);
+                router.push('/settings');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="settings" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Settings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              onPress={() => {
+                setShowMenu(false);
+                router.push('/admin');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="admin-panel-settings" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Admin Dashboard</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              onPress={() => {
+                setShowMenu(false);
+                router.push('/help-support');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="help-outline" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Help & Support</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              onPress={() => {
+                setShowMenu(false);
+                router.push('/display-accessibility');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="accessibility-new" size={18} color={theme.colors.textPrimary} style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownItem, { color: theme.colors.textPrimary }]}>Display & Accessibility</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.dropdownDivider, { backgroundColor: theme.colors.border }]} />
+
+            <TouchableOpacity
+              style={[styles.dropdownBtn, styles.logoutBtn]}
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="logout" size={18} color="#FF6B6B" style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownItem, styles.logoutText]}>
+                Log out
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <BottomBelt active="profile" />
       </View>
     </SafeAreaView>
@@ -913,7 +930,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.05)',
     minWidth: 180,
-    zIndex: 1000,
+    zIndex: 2000,
+    elevation: 20,
   },
   dropdownBtn: {
     flexDirection: 'row',

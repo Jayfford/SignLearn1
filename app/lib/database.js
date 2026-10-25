@@ -512,3 +512,19 @@ export const loginUser = async ({ email, password }) => {
 
   return localLoginUser(normalized);
 };
+
+export const logoutUser = async () => {
+  try {
+    await AsyncStorage.multiRemove(['userData', 'userToken']);
+  } catch (error) {
+    console.log('Error clearing local session:', error);
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.log('Supabase sign-out failed:', error);
+    }
+  }
+};

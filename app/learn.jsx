@@ -24,6 +24,23 @@ import BottomBelt from './components/BottomBelt';
 import { useNotifications } from './notification-context';
 import { getStudentProgress, TOTAL_LESSONS } from './lib/studentProgress';
 
+const SIGN_LANGUAGE_STORAGE_KEY = 'selectedSignLanguage';
+
+const SIGN_LANGUAGES = [
+  {
+    id: 'FSL',
+    flag: '🇵🇭',
+    title: 'Filipino Sign Language (FSL)',
+    description: 'Learn signs used by the Filipino Deaf community.',
+  },
+  {
+    id: 'ASL',
+    flag: '🇺🇸',
+    title: 'American Sign Language (ASL)',
+    description: 'Learn signs commonly used in the United States.',
+  },
+];
+
 export default function Learn() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -40,6 +57,8 @@ export default function Learn() {
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [accountType, setAccountType] = useState('student');
+  const [selectedLanguageId, setSelectedLanguageId] = useState(null);
+  const [languageReady, setLanguageReady] = useState(false);
   const [studioPosts, setStudioPosts] = useState([]);
   const [studioDraft, setStudioDraft] = useState({
     title: '',
@@ -101,8 +120,15 @@ export default function Learn() {
           }
         }
       }
+
+      const storedLanguage = await AsyncStorage.getItem(SIGN_LANGUAGE_STORAGE_KEY);
+      if (storedLanguage === 'FSL' || storedLanguage === 'ASL') {
+        setSelectedLanguageId(storedLanguage);
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
+    } finally {
+      setLanguageReady(true);
     }
   };
 
@@ -398,11 +424,34 @@ export default function Learn() {
     return false;
   };
 
+  const selectedLanguage = SIGN_LANGUAGES.find((language) => language.id === selectedLanguageId);
+  const languageName = selectedLanguage?.id || 'FSL';
+  const needsLanguageChoice = accountType === 'student' && languageReady && !selectedLanguageId;
+  const showLessonModules = accountType !== 'student' || Boolean(selectedLanguageId);
+
+  const handleSelectLanguage = async (languageId) => {
+    try {
+      await AsyncStorage.setItem(SIGN_LANGUAGE_STORAGE_KEY, languageId);
+    } catch (error) {
+      console.error('Error saving sign language preference:', error);
+    }
+    setSelectedLanguageId(languageId);
+  };
+
+  const handleChangeLanguage = async () => {
+    try {
+      await AsyncStorage.removeItem(SIGN_LANGUAGE_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing sign language preference:', error);
+    }
+    setSelectedLanguageId(null);
+  };
+
   const challengeData = [
     {
       id: '1',
       category: 'Novice Sign',
-      description: 'Learn the basics of FSL',
+      description: `Learn the basics of ${languageName}`,
       lessons: [
         { id: '1', name: 'Alphabet', icon: 'font-download', locked: false },
         { id: '2', name: 'Numbers', icon: 'format-list-numbered', locked: false },
@@ -423,7 +472,7 @@ export default function Learn() {
     {
       id: '3',
       category: 'Advance Sign',
-      description: 'Master advanced FSL concepts',
+      description: `Master advanced ${languageName} concepts`,
       lessons: [
         { id: '8', name: 'Module 2 Quiz', icon: 'quiz', locked: true },
         { id: '9', name: 'Classifiers (CL)', icon: 'flight', locked: true },
@@ -1070,6 +1119,33 @@ export default function Learn() {
     );
   };
 
+  const renderLanguagePicker = () => (
+    <View style={styles.languagePickerWrap}>
+      <View style={styles.languageIntroCard}>
+        <Text style={styles.languageIntroTitle}>Choose Your Sign Language</Text>
+        <Text style={styles.languageIntroText}>
+          Sign languages have different variations. Select the one you want to learn.
+        </Text>
+      </View>
+
+      {SIGN_LANGUAGES.map((language) => (
+        <TouchableOpacity
+          key={language.id}
+          style={styles.languageOptionCard}
+          onPress={() => handleSelectLanguage(language.id)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.languageFlag}>{language.flag}</Text>
+          <View style={styles.languageOptionCopy}>
+            <Text style={styles.languageOptionTitle}>{language.title}</Text>
+            <Text style={styles.languageOptionText}>{language.description}</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color="#A48769" />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   return (
     <>
       <SafeAreaView style={styles.safeArea}>
@@ -1119,9 +1195,31 @@ export default function Learn() {
             </View>
           </View>
 
-          {/* Progress Bar */}
-          {accountType === 'student' ? renderProgressBar() : null}
+          {needsLanguageChoice ? renderLanguagePicker() : null}
 
+          {accountType === 'student' && selectedLanguage ? (
+            <View style={styles.languageBanner}>
+              <View style={styles.languageBannerCopy}>
+                <Text style={styles.languageBannerLabel}>Learning</Text>
+                <Text style={styles.languageBannerTitle}>
+                  {selectedLanguage.flag} {selectedLanguage.title}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.languageChangeButton}
+                onPress={handleChangeLanguage}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.languageChangeText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Progress Bar */}
+          {accountType === 'student' && showLessonModules ? renderProgressBar() : null}
+
+          {showLessonModules ? (
+            <View>
           {/* Tabs */}
           <View style={styles.tabsContainer}>
             {(accountType === 'teacher' || accountType === 'deaf') ? (
@@ -1262,6 +1360,8 @@ export default function Learn() {
               )
             ) : null}
           </View>
+            </View>
+          ) : null}
         </ScrollView>
 
         <BottomBelt active="learn" />
@@ -1323,6 +1423,108 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 20,
     backgroundColor: '#FFFDFC',
+  },
+  languagePickerWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  languageIntroCard: {
+    backgroundColor: '#FFFDFC',
+    borderRadius: 18,
+    padding: 22,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E9DCCB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  languageIntroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#2B2622',
+    marginBottom: 8,
+  },
+  languageIntroText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#7D7066',
+  },
+  languageOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFDFC',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E9DCCB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  languageFlag: {
+    fontSize: 32,
+    marginRight: 14,
+  },
+  languageOptionCopy: {
+    flex: 1,
+  },
+  languageOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2B2622',
+    marginBottom: 4,
+  },
+  languageOptionText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#7D7066',
+  },
+  languageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFDFC',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E9DCCB',
+  },
+  languageBannerCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  languageBannerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#A48769',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  languageBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2B2622',
+  },
+  languageChangeButton: {
+    backgroundColor: '#EBD8C1',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  languageChangeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2B2622',
   },
   progressContainer: {
     backgroundColor: '#FFFDFC',
